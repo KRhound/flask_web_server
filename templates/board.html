@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block title %}Post List{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2 class="mt-5 mb-3">Post List</h2>
+  <ul class="list-group">
+    {% for post in posts %}
+    <li class="list-group-item">
+      <h3>{{ post.title }}</h3>
+      <p>{{ post.content }}</p>
+      <small>{{ post.created_at }}</small>
+    </li>
+    {% else %}
+    <li class="list-group-item">No posts available.</li>
+    {% endfor %}
+  </ul>
+
+  <a href="{{ url_for('create_post') }}" class="btn btn-primary mt-3">Create Post</a>
+</div>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="jumbotron">
+  <h1 class="display-4">안녕하세요!</h1>
+  <p class="lead">간략한 환영 메시지가 들어갈 부분입니다.</p>
+  <hr class="my-4">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        <!-- 프로필 사진 -->
+        <img src="../static/profile_picture.png" class="img-fluid rounded-circle" alt="Profile Picture">
+      </div>
+      <div class="col-md-8">
+        <!-- 자기 소개 -->
+        <h2>자기 소개</h2>
+        <p>안녕하세요! 저는 [이름]입니다. [간단한 자기 소개]</p>
+        <hr>
+        <!-- 기술 스택 -->
+        <h3>기술 스택</h3>
+        <p>HTML, CSS, JavaScript, Python, Django, SQL 등</p>
+        <hr>
+        <!-- 경력 -->
+        <h3>경력</h3>
+        <ul>
+          <li>[회사/기관 이름] - [직무] - [날짜]</li>
+          <li>[회사/기관 이름] - [직무] - [날짜]</li>
+          <!-- 다른 경력 항목들 -->
+        </ul>
+        <hr>
+        <!-- 수상 이력 -->
+        <h3>수상 이력</h3>
+        <ul>
+          <li>[수상명] - [수여 기관] - [날짜]</li>
+          <li>[수상명] - [수여 기관] - [날짜]</li>
+          <!-- 다른 수상 이력 항목들 -->
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
