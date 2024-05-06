@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, url_for
+from flask import Flask, render_template, request, redirect, session, url_for, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta
 import hashlib
@@ -120,6 +120,30 @@ def create_post():
         except sqlite3.IntegrityError:
             msg = "작성 실패"
             return render_template('create_post.html', msg=msg)
+
+# 다운로드 페이지
+@app.route('/download/<id>', methods=['GET'])
+def download(id):
+    try:
+        status = 1
+        select_query = """
+        SELECT real_filename, hash_filename FROM boards WHERE id = ? AND status = ?
+        """
+        cursor.execute(select_query, (id, status))
+        file = cursor.fetchone()
+        real_filename = file[0]
+        hash_filename = file[1]
+        print(real_filename)
+        print(hash_filename)
+        # 파일 경로 설정
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], hash_filename)
+        # 파일이 존재하는지 확인하고 다운로드
+        if os.path.exists(file_path):
+            return send_file(file_path, download_name=real_filename, as_attachment=True)
+        else:
+            return render_template('error.html', error='File not found')
+    except Exception as e:
+        return str(e)
 
 # 포트폴리오 페이지
 @app.route('/portfolio', methods=['GET'])
