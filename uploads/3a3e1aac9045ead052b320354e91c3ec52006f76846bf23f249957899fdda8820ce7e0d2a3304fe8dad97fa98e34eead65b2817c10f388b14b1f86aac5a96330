@@ -1,0 +1,35 @@
+[구성]
+· 라마 인덱스와 랭체인 비교
+https://hyeong9647.tistory.com/entry/%EB%9D%BC%EB%A7%88-%EC%9D%B8%EB%8D%B1%EC%8A%A4%EC%99%80-%EB%9E%AD%EC%B2%B4%EC%9D%B8-%EC%B0%A8%EC%9D%B4%EC%A0%90
+
+
+
+
+[데이터 구성 및 저장 관련]
+· 라마인덱스 문서형 dataset
+https://github.com/run-llama/llama-datasets
+https://m.blog.naver.com/ulsancoding/223114445215
+· 데이터베이스를 이용한 설계?
+https://bnmy6581.tistory.com/270#2)%20SQuAD%20dataset%20Load-1
+	· 기계독해 SQuAD 관련 설명
+	https://m.blog.naver.com/gracehappyworld/221733098068
+
+
+
+[코드 구성 관련]
+· 라마인덱스 코딩 관련 상세 내용
+https://medium.com/@reddyyashu20/llamaindex-create-save-load-indexes-customize-llms-prompts-embeddings-abb581df6dac
+
+
+
+[llama2]
+· 코드 요청 번호
+요청 ID: 1135972690775756
+
+[LLM]
+· 2024년에 주목할 최고의 오픈 소스 LLM
+https://www.techopedia.com/kr/6-best-open-source-llms-to-watch-out-for-in-2024
+· LLM Falcon 7B, 40B, 180B
+https://falconllm.tii.ae/falcon-models.html
+· LLM LLaMa2
+https://llama.meta.com/

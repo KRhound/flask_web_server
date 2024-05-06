@@ -64,15 +64,14 @@ def board():
         msg = "문제 발생"
         return render_template('profile.html', msg=msg)
 
-# 게시글 페이지
+# 게시글 보기 페이지
 @app.route('/view_post', methods=['GET'])
 def view_post():
     try:
-        post={}
         id = request.args.get('id', '', type=int)
         status = 1
         select_query = """
-        SELECT title, username, content, modification_date FROM boards WHERE id = ? AND status = ?
+        SELECT id, title, username, content, real_filename, modification_date FROM boards WHERE id = ? AND status = ?
         """
         cursor.execute(select_query, (id, status))
         post = cursor.fetchone()
@@ -80,6 +79,51 @@ def view_post():
     except sqlite3.IntegrityError:
         msg = "게시글 없음"
         return render_template('board.html', msg=msg)
+    
+# 게시글 수정 페이지
+# @app.route('/update_post', methods=['GET'])
+# def update_post():
+#     if request.method == "GET":
+#         id = request.args.get('id', '', type=int)
+        
+#         return render_template('edit_post.html', post=post)
+#     elif request.method == 'POST':
+#         try:
+            
+#             status = 1
+#             update_query = """
+#             INSERT INTO boards (U_id, username, title, content, real_filename, hash_filename, status) 
+#             VALUES (?, ?, ?, ?, ?, ?, ?)
+#             """
+#             cursor.execute(update_query, (id, status))
+#             conn.commit()
+#             select_query = """
+#             SELECT id, title, username, content, real_filename, modification_date FROM boards WHERE id = ? AND status = ?
+#             """
+#             cursor.execute(select_query, (id, status))
+#             post = cursor.fetchone()
+#             return render_template('view_post.html', post=post)
+#         except:
+#             return render_template('board.html')
+
+# 게시글 삭제 페이지
+@app.route('/delete_post', methods=['GET'])
+def delete_post():
+    if request.method == 'GET':
+        try:
+            id = request.args.get('id', '', type=int)
+            status = 0
+            update_query = """
+            UPDATE boards 
+            SET status = ? 
+            WHERE id = ?
+            """
+            cursor.execute(update_query, (status, id))
+            conn.commit()
+            return redirect(url_for('board'))
+        except:
+            msg = "게시글 삭제 실패"
+            return render_template('board.html', msg=msg)
 
 # 게시글 생성 기능
 @app.route('/create_post', methods=['GET', 'POST'])
@@ -107,7 +151,8 @@ def create_post():
                 hash_filename = filename_sha_512_hash(file.filename)
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], hash_filename))
             else:
-                file_path = None
+                real_filename = None
+                hash_filename = None
             
             # 회원 정보 데이터베이스에 삽입
             insert_query = """
@@ -116,7 +161,7 @@ def create_post():
             """
             cursor.execute(insert_query, (U_id, username, title, content, real_filename, hash_filename, status))
             conn.commit()
-            return render_template('board.html')
+            return redirect(url_for('board'))
         except sqlite3.IntegrityError:
             msg = "작성 실패"
             return render_template('create_post.html', msg=msg)
