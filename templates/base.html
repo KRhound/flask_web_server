@@ -1,3 +1,8 @@
+{% if msg %}
+<script>
+  alert("{{ msg|safe }}");
+</script>
+{% endif %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -25,10 +30,10 @@
       <li class="nav-item">
         <a class="nav-link" href="/portfolio">포트폴리오</a>
       </li>
+      {% if 'username' in session %}
       <li class="nav-item">
         <a class="nav-link" href="/contact">CONTACT ME</a>
       </li>
-      {% if 'username' in session %}
       <li class="nav-item">
         <a class="nav-link" href="/logout">로그아웃</a>
       </li>

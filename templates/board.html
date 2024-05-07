@@ -6,11 +6,10 @@
 <div class="container">
   <h2 class="mt-5 mb-3">Post List</h2>
   <ul class="list-group">
-    {% set post_number = 1 %}
     {% for post in posts %}
     <li class="list-group-item d-flex justify-content-between align-items-center">
       <div>
-        <span class="badge badge-primary mr-2">{{ post_number }}</span> <!-- 게시글 번호 -->
+        <span class="badge badge-primary mr-2">{{ loop.index }}</span> <!-- 게시글 번호 -->
         <span class="badge badge-secondary mr-2">{{ post[2] }}</span> <!-- 작성자 -->
         <a href="{{ url_for('view_post', id=post[0]) }}">
           <strong>{{ post[1] }}</strong> <!-- 제목 -->
@@ -18,7 +17,6 @@
       </div>
       <span class="text-muted">{{ post[3] }}</span> <!-- 작성일 -->
     </li>
-    {% set post_number = post_number + 1 %}
     {% else %}
     <li class="list-group-item">No posts available.</li>
     {% endfor %}
