@@ -335,14 +335,14 @@ def view_contact():
             status = 1
             if authority == 1:
                 select_query = """
-                SELECT id, title, username, message, response_date, registration_date 
+                SELECT id, title, username, email, message, response_date, registration_date 
                 FROM contacts WHERE id = ? AND username = ? AND status = ?
                 """
                 cursor.execute(select_query, (id, username, status))
                 contact = cursor.fetchone()
             elif authority == 2:
                 select_query = """
-                SELECT id, title, username, message, response_date, registration_date 
+                SELECT id, title, username, email, message, response_date, registration_date 
                 FROM contacts WHERE id = ? AND status = ?
                 """
                 cursor.execute(select_query, (id, status))

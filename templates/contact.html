@@ -12,9 +12,11 @@
         <span class="badge badge-primary mr-2">{{ loop.index }}</span> <!-- 게시글 번호 -->
         <span class="badge badge-secondary mr-2">{{ contact[1] }}</span> <!-- 작성자 -->
       </div>
-      <a href="{{ url_for('view_contact', id=contact[0]) }}">
-        <strong>{{ contact[2] }}</strong> <!-- 제목 -->
-      </a>
+      <div>
+        <a href="{{ url_for('view_contact', id=contact[0]) }}">
+          <strong class="text-center d-block">{{ contact[2] }}</strong> <!-- 제목 -->
+        </a>
+      </div>
       <div>
         <span class="text-info ml-2">{{ contact[3] }}</span> <!-- 이메일 -->
         <span class="text-muted ml-2">{{ contact[5] }}</span> <!-- 작성일 -->
