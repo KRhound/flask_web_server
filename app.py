@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, session, url_for, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_mail import Mail, Message
 from datetime import timedelta
 import hashlib
 import sqlite3
@@ -28,15 +29,50 @@ def allowed_file(filename):
 # 파일 업로드 경로가 존재하지 않으면 생성
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
-    
+
+app.config.update(
+    DEBUG=True,
+    MAIL_SERVER='smtp.gmail.com',
+    MAIL_PORT=587,
+    MAIL_USE_TLS=True,
+    MAIL_USE_SSL=False,
+    MAIL_USERNAME='jihoon3990@gmail.com',
+    MAIL_PASSWORD='glbtuhkyfdakgmke',
+)
+
+
 def filename_sha_512_hash(data):
-    # 데이터를 UTF-8 인코딩으로 변환하여 해싱합니다.
     encoded_data = data.encode('utf-8') + os.urandom(16)
     hashed_data = hashlib.sha512(encoded_data).hexdigest()
     return hashed_data
 
+def password_sha_512_hash(data):
+    encoded_data = data.encode('utf-8')
+    hashed_data = hashlib.sha512(encoded_data).hexdigest()
+    return hashed_data
+
+def send_confirmation_email(email, token):
+    try:
+        mail = Mail(app)
+        msg = Message('[KRhound] 이메일 인증 번호', sender='jihoon3990@gmail.com', recipients=[email])
+        msg.body = '안녕하세요. KRhound 입니다.\n인증 번호를 입력하여 이메일 인증을 완료해 주세요.\n인증 번호 : /nhttp://127.0.0.1:5000/confirm/{}'.format(str(token))
+        mail.send(msg)
+        return True
+    except Exception as e:
+        return e
+
+def create_directory_if_not_exists(directory_path):
+    # 디렉토리가 존재하지 않으면 생성
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
+        print(f"디렉토리 생성: {directory_path}")
+    else:
+        print(f"디렉토리 이미 존재함: {directory_path}")
+
 conn = sqlite3.connect('web.db', check_same_thread=False)
 cursor = conn.cursor()
+
+# -------------------------------------------------------------
 
 # 메인 페이지
 # 프로필 페이지
@@ -57,6 +93,8 @@ def error():
     error = request.args.get('error', None, type=str)
     if error is not None:
         return render_template('error.html', error=error)
+    
+# -------------------------------------------------------------
 
 # 게시판 페이지
 @app.route('/board', methods=['GET'])
@@ -80,7 +118,7 @@ def view_post():
     if request.method == 'GET':
         try:
             if 'username' not in session:
-                error = "Login required"
+                error = "Login required."
                 return redirect(url_for('error', error=error))
             U_id = session['id']
             username = session['username']
@@ -93,7 +131,13 @@ def view_post():
             """
             cursor.execute(select_query, (id, status))
             post = cursor.fetchone()
-            return render_template('view_post.html', post=post)
+            select_query = """
+            SELECT id, username, content, modification_date 
+            FROM comments WHERE B_id = ? AND status = ? ORDER BY modification_date DESC;
+            """
+            cursor.execute(select_query, (id, status))
+            comments = cursor.fetchall()
+            return render_template('view_post.html', post=post, comments=comments)
         except sqlite3.IntegrityError:
             error = "Unusual approach."
             return redirect(url_for('error', error=error))
@@ -104,7 +148,7 @@ def update_post():
     if request.method == "GET":
         try:
             if 'username' not in session:
-                error = "Login required"
+                error = "Login required."
                 return redirect(url_for('error', error=error))
             id = request.args.get('id', '', type=int)
             U_id = session['id']
@@ -124,7 +168,7 @@ def update_post():
     elif request.method == 'POST':
         try:
             if 'username' not in session:
-                error = "Login required"
+                error = "Login required."
                 return redirect(url_for('error', error=error))
             id = request.args.get('id', '', type=int)
             title = request.form['title']
@@ -133,7 +177,6 @@ def update_post():
             username = session['username']
             authority = session['authority']
             status = 1
-            
             # 파일 업로드 처리
             file = request.files['file']
             if file and allowed_file(file.filename):
@@ -148,7 +191,6 @@ def update_post():
             else:
                 real_filename = None
                 hash_filename = None
-            
             if real_filename is None and hash_filename is None:
                 update_query = """
                 UPDATE boards 
@@ -176,7 +218,7 @@ def delete_post():
     if request.method == 'GET':
         try:
             if 'username' not in session:
-                error = "Login required"
+                error = "Login required."
                 return redirect(url_for('error', error=error))
             id = request.args.get('id', '', type=int)
             status = 0
@@ -197,13 +239,13 @@ def delete_post():
 def create_post():
     if request.method == 'GET':
         if 'username' not in session:
-                error = "Login required"
+                error = "Login required."
                 return redirect(url_for('error', error=error))
         return render_template('create_post.html')
     elif request.method == 'POST':
         try:
             if 'username' not in session:
-                error = "Login required"
+                error = "Login required."
                 return redirect(url_for('error', error=error))
             title = request.form['title']
             content = request.form['content']
@@ -211,9 +253,15 @@ def create_post():
             username = session['username']
             authority = session['authority']
             status = 1
-            
-            # 파일 업로드 처리
             file = request.files['file']
+            
+            # 회원 정보 데이터베이스에 삽입
+            insert_query = """
+            INSERT INTO boards (U_id, username, title, content, real_filename, hash_filename, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """
+            
+             # 파일 업로드 처리
             if file and allowed_file(file.filename):
                 # 파일 크기 제한 설정 (최대 1MB)
                 if len(file.read()) > 1024*1024*100:
@@ -222,29 +270,82 @@ def create_post():
                 file.seek(0)  # 파일을 다시 읽을 수 있도록 커서 위치를 처음으로 이동시킴
                 real_filename = file.filename
                 hash_filename = filename_sha_512_hash(file.filename)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], hash_filename))
+                cursor.execute(insert_query, (U_id, username, title, content, real_filename, hash_filename, status))
+                conn.commit()
+                id = cursor.lastrowid
+                file_path = app.config['UPLOAD_FOLDER']+'/'+str(id)+'/'
+                create_directory_if_not_exists(file_path)
+                file.save(os.path.join(file_path, hash_filename))
             else:
                 real_filename = None
                 hash_filename = None
-            
-            # 회원 정보 데이터베이스에 삽입
-            insert_query = """
-            INSERT INTO boards (U_id, username, title, content, real_filename, hash_filename, status) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """
-            cursor.execute(insert_query, (U_id, username, title, content, real_filename, hash_filename, status))
-            conn.commit()
-            return redirect(url_for('board'))
+                cursor.execute(insert_query, (U_id, username, title, content, real_filename, hash_filename, status))
+                conn.commit()
+                id = cursor.lastrowid
+                
+            return redirect(url_for('view_post', id=id))
         except sqlite3.IntegrityError:
             error = "Creation failed."
             return redirect(url_for('error', error=error))
+
+# 댓글 작성
+@app.route('/create_comment', methods=['POST'])
+def create_comment():
+    if request.method == 'POST':
+        try:
+            if 'username' not in session:
+                error = "Login required."
+                return redirect(url_for('error', error=error))
+            id = request.args.get('id', '', type=int)
+            content = request.form['content']
+            U_id = session['id']
+            username = session['username']
+            authority = session['authority']
+            status = 1
+            insert_query = """
+            INSERT INTO comments (U_id, username, content, status, B_id) 
+            VALUES (?, ?, ?, ?, ?)
+            """
+            cursor.execute(insert_query, (U_id, username, content, status, id))
+            conn.commit()
+            return redirect(url_for('view_post', id=id))
+        except sqlite3.IntegrityError:
+            error = "Creation failed."
+            return redirect(url_for('error', error=error))
+        
+# 게시글 삭제
+@app.route('/delete_comment', methods=['GET'])
+def delete_comment():
+    if request.method == 'GET':
+        try:
+            if 'username' not in session:
+                error = "Login required."
+                return redirect(url_for('error', error=error))
+            id = request.args.get('id', '', type=int)
+            B_id = request.args.get('B_id', '', type=int)
+            U_id = session['id']
+            username = session['username']
+            authority = session['authority']
+            update_query = """
+            UPDATE comments 
+            SET status = 0 
+            WHERE id = ? AND username = ? AND status = 1
+            """
+            cursor.execute(update_query, (id, username))
+            conn.commit()
+            return redirect(url_for('view_post', id=B_id))
+        except:
+            error = "Failed to delete post."
+            return redirect(url_for('error', error=error))
+
+# -------------------------------------------------------------
 
 # 다운로드 페이지
 @app.route('/download/<id>/<filename>', methods=['GET'])
 def download(id, filename):
     try:
         if 'username' not in session:
-            error = "Login required"
+            error = "Login required."
             return redirect(url_for('error', error=error))
         status = 1
         select_query = """
@@ -258,17 +359,20 @@ def download(id, filename):
         print(real_filename)
         print(hash_filename)
         # 파일 경로 설정
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], hash_filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], id, hash_filename)
         # 파일이 존재하는지 확인하고 다운로드
         if os.path.exists(file_path):
             return send_file(file_path, download_name=real_filename, as_attachment=True)
         else:
-            error='File not found'
+            error='File not found.'
             return redirect(url_for('error', error=error))
     except Exception:
-        error = "Download failed"
+        error = "Download failed."
         return redirect(url_for('error', error=error))
+    
+# -------------------------------------------------------------
 
+# Contact Me 게시판 페이지
 @app.route('/contact', methods=['GET'])
 def contact():
     try:
@@ -290,13 +394,13 @@ def contact():
 def create_contact():
     if request.method == 'GET':
         if 'username' not in session:
-            error = "Login required"
+            error = "Login required."
             return redirect(url_for('error', error=error))
         return render_template('create_contact.html')
     elif request.method == 'POST':
         try:
             if 'username' not in session:
-                error = "Login required"
+                error = "Login required."
                 return redirect(url_for('error', error=error))
             U_id = session['id']
             username = session['username']
@@ -320,13 +424,13 @@ def create_contact():
             error = "Creation failed."
             return redirect(url_for('error', error=error))
                 
-# 게시글 보기 페이지
+# contact 게시글 보기 페이지
 @app.route('/view_contact', methods=['GET'])
 def view_contact():
     if request.method == 'GET':
         try:
             if 'username' not in session:
-                error = "Login required"
+                error = "Login required."
                 return redirect(url_for('error', error=error))
             U_id = session['id']
             username = session['username']
@@ -352,13 +456,13 @@ def view_contact():
             error = "Unusual approach."
             return redirect(url_for('error', error=error))
         
-# 게시글 삭제 페이지
+# contact 게시글 삭제 페이지
 @app.route('/delete_contact', methods=['GET'])
 def delete_contact():
     if request.method == 'GET':
         try:
             if 'username' not in session:
-                error = "Login required"
+                error = "Login required."
                 return redirect(url_for('error', error=error))
             id = request.args.get('id', '', type=int)
             status = 0
@@ -381,7 +485,7 @@ def update_contact():
     if request.method == "GET":
         try:
             if 'username' not in session:
-                error = "Login required"
+                error = "Login required."
                 return redirect(url_for('error', error=error))
             id = request.args.get('id', '', type=int)
             U_id = session['id']
@@ -401,7 +505,7 @@ def update_contact():
     elif request.method == 'POST':
         try:
             if 'username' not in session:
-                error = "Login required"
+                error = "Login required."
                 return redirect(url_for('error', error=error))
             id = request.args.get('id', '', type=int)
             title = request.form['title']
@@ -423,6 +527,8 @@ def update_contact():
         except:
             error = "Failed to edit contact."
             return redirect(url_for('error', error=error))
+        
+# -------------------------------------------------------------
 
 # 로그인 페이지
 @app.route('/login', methods=['GET', 'POST'])
@@ -440,7 +546,9 @@ def login():
             """
             cursor.execute(select_query, (id, password))
             user = cursor.fetchone()
-            if user:
+            if user[2] == 0:
+                return redirect(url_for('send_email', id=user[0]))
+            elif user:
                 # 세션에 사용자 정보 저장
                 session['id'] = user[0]
                 session['username'] = user[1]
@@ -450,7 +558,7 @@ def login():
                 error = "Account mismatch."
                 return redirect(url_for('error', error=error))
         except sqlite3.IntegrityError:
-            error = "Login failed"
+            error = "Login failed."
             return redirect(url_for('error', error=error))
 
 # 회원가입 페이지
@@ -487,7 +595,7 @@ def register():
         except sqlite3.IntegrityError:
             msg = "이미 존재하는 회원 정보입니다."
             return render_template('/register.html', msg=msg)
-
+        
 # 로그아웃
 @app.route('/logout', methods=['GET'])
 def logout():
@@ -498,8 +606,66 @@ def logout():
         except:
             msg = "Logout failed."
             return render_template('/profile.html', msg=msg)
+        
+# -------------------------------------------------------------
+        
+@app.route('/send_email/<id>', methods=['GET', 'POST'])
+def send_email(id):
+    if request.method == 'GET':
+        try:
+            select_query = """
+            SELECT id, username, email, authority
+            FROM members WHERE id = ?
+            """
+            cursor.execute(select_query, (id, ))
+            user = cursor.fetchone()
+            # 이메일 토큰 생성 및 저장
+            if user[3] == 0:
+                token = secrets.token_hex(256)
+                print(token)
+                insert_query = """
+                INSERT INTO verify (U_id, username, email, token) 
+                VALUES (?, ?, ?, ?)
+                """
+                cursor.execute(insert_query, (user[0], user[1], user[2], token))
+                conn.commit()
+                # 이메일에 토큰 전송
+                print(send_confirmation_email(user[2], token))
+                msg = "Authentication email sent successfully."
+                return redirect(url_for('verify_email', msg=msg))
+            else:
+                error = "Failed to send authentication email."
+                return redirect(url_for('error', error=error))
+        except Exception as e:
+            error = "Failed to send authentication email."
+            return redirect(url_for('error', error=error))
 
-# 관리자 페이지 구현  
+@app.route('/verify_email/<msg>', methods=['GET', 'POST'])
+def verify_email(msg):
+    return render_template('verify_email.html', verify_msg=msg)
+
+
+@app.route('/confirm/<token>', methods=['GET', 'POST'])
+def confirm_email(token):
+    select_query = """
+    SELECT id, username, email, authority
+    FROM members WHERE token = ?
+    """
+    cursor.execute(select_query, (id, ))
+    user = cursor.fetchone()
+    update_query = """
+    UPDATE member
+    SET authority = 1
+    WHERE id = ? AND username = ? AND email = ? and authority = ? andstatus = 1
+    """
+    cursor.execute(update_query, (user[0], user[1], user[2]))
+    conn.commit()
+    msg = "Authentication successful."
+    return redirect(url_for('verify_email', verify_msg=msg))
+
+# -------------------------------------------------------------
+
+# 관리자 페이지 구현
 @app.route('/ed9465dea93268e8', methods=['GET'])
 def admin():
     return render_template('krhound.html')
