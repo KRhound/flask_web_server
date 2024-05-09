@@ -16,7 +16,7 @@
         </div>
         {% if post[4] != None %}
         <div class="card-footer text-muted bg-light">
-            <p class="mb-0">Download : <a href="{{ url_for('download', id=post[0]) }}">{{ post[4] }}</a></p>
+            <p class="mb-0">Download : <a href="{{ url_for('download', id=post[0], filename=post[4]) }}">{{ post[4] }}</a></p>
         </div>
         {% endif %}
         <div class="card-footer text-muted bg-light">

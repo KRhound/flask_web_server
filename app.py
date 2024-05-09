@@ -64,7 +64,8 @@ def board():
     try:
         status = 1
         select_query = """
-        SELECT id, title, username, modification_date FROM boards WHERE status = ? ORDER BY modification_date DESC;
+        SELECT id, title, username, modification_date 
+        FROM boards WHERE status = ? ORDER BY modification_date DESC;
         """
         cursor.execute(select_query, (status, ))
         posts = cursor.fetchall()
@@ -87,7 +88,8 @@ def view_post():
             id = request.args.get('id', '', type=int)
             status = 1
             select_query = """
-            SELECT id, title, username, content, real_filename, modification_date FROM boards WHERE id = ? AND status = ?
+            SELECT id, title, username, content, real_filename, modification_date 
+            FROM boards WHERE id = ? AND status = ?
             """
             cursor.execute(select_query, (id, status))
             post = cursor.fetchone()
@@ -110,7 +112,8 @@ def update_post():
             authority = session['authority']
             status = 1
             select_query = """
-            SELECT id, title, username, content, real_filename FROM boards WHERE id = ? AND U_id = ? AND status = ?
+            SELECT id, title, username, content, real_filename 
+            FROM boards WHERE id = ? AND U_id = ? AND status = ?
             """
             cursor.execute(select_query, (id, U_id, status))
             post = cursor.fetchone()
@@ -237,17 +240,18 @@ def create_post():
             return redirect(url_for('error', error=error))
 
 # 다운로드 페이지
-@app.route('/download/<id>', methods=['GET'])
-def download(id):
+@app.route('/download/<id>/<filename>', methods=['GET'])
+def download(id, filename):
     try:
         if 'username' not in session:
             error = "Login required"
             return redirect(url_for('error', error=error))
         status = 1
         select_query = """
-        SELECT real_filename, hash_filename FROM boards WHERE id = ? AND status = ?
+        SELECT real_filename, hash_filename 
+        FROM boards WHERE id = ? AND real_filename = ? AND status = ?
         """
-        cursor.execute(select_query, (id, status))
+        cursor.execute(select_query, (id, filename, status))
         file = cursor.fetchone()
         real_filename = file[0]
         hash_filename = file[1]
@@ -261,17 +265,34 @@ def download(id):
         else:
             error='File not found'
             return redirect(url_for('error', error=error))
-    except Exception as e:
-        return str(e)
+    except Exception:
+        error = "Download failed"
+        return redirect(url_for('error', error=error))
 
-# CONTACT ME 페이지
-@app.route('/contact', methods=['GET', 'POST'])
+@app.route('/contact', methods=['GET'])
 def contact():
+    try:
+        status = 1
+        select_query = """
+        SELECT id, username, title, email, response_date, registration_date 
+        FROM contacts WHERE status = ? ORDER BY registration_date DESC;
+        """
+        cursor.execute(select_query, (status, ))
+        contacts = cursor.fetchall()
+        return render_template('contact.html', contacts=contacts)
+    except sqlite3.InternalError:
+        msg = "Bulletin board loading failure."
+        return redirect(url_for('error', error=error))
+    
+
+# CONTACT ME 생성 페이지
+@app.route('/create_contact', methods=['GET', 'POST'])
+def create_contact():
     if request.method == 'GET':
         if 'username' not in session:
             error = "Login required"
             return redirect(url_for('error', error=error))
-        return render_template('contact.html')
+        return render_template('create_contact.html')
     elif request.method == 'POST':
         try:
             if 'username' not in session:
@@ -286,17 +307,121 @@ def contact():
             if (title != None and email != None and message != None):
                 # CONTACT 데이터베이스에 삽입
                 insert_query = """
-                INSERT INTO contact (U_id, username, title, email, message, status) 
+                INSERT INTO contacts (U_id, username, title, email, message, status) 
                 VALUES (?, ?, ?, ?, ?, ?)
                 """
                 cursor.execute(insert_query, (U_id, username, title, email, message, status))
                 conn.commit()
-                return render_template('contact_list.html')
+                return redirect(url_for('contact'))
             else:
                 error = "No input."
                 return redirect(url_for('error', error=error))
         except sqlite3.IntegrityError:
             error = "Creation failed."
+            return redirect(url_for('error', error=error))
+                
+# 게시글 보기 페이지
+@app.route('/view_contact', methods=['GET'])
+def view_contact():
+    if request.method == 'GET':
+        try:
+            if 'username' not in session:
+                error = "Login required"
+                return redirect(url_for('error', error=error))
+            U_id = session['id']
+            username = session['username']
+            authority = session['authority']
+            id = request.args.get('id', '', type=int)
+            status = 1
+            if authority == 1:
+                select_query = """
+                SELECT id, title, username, message, response_date, registration_date 
+                FROM contacts WHERE id = ? AND username = ? AND status = ?
+                """
+                cursor.execute(select_query, (id, username, status))
+                contact = cursor.fetchone()
+            elif authority == 2:
+                select_query = """
+                SELECT id, title, username, message, response_date, registration_date 
+                FROM contacts WHERE id = ? AND status = ?
+                """
+                cursor.execute(select_query, (id, status))
+                contact = cursor.fetchone()
+            return render_template('view_contact.html', contact=contact)
+        except sqlite3.IntegrityError:
+            error = "Unusual approach."
+            return redirect(url_for('error', error=error))
+        
+# 게시글 삭제 페이지
+@app.route('/delete_contact', methods=['GET'])
+def delete_contact():
+    if request.method == 'GET':
+        try:
+            if 'username' not in session:
+                error = "Login required"
+                return redirect(url_for('error', error=error))
+            id = request.args.get('id', '', type=int)
+            status = 0
+            username = session['username']
+            update_query = """
+            UPDATE contacts 
+            SET status = ? 
+            WHERE id = ? and username = ?
+            """
+            cursor.execute(update_query, (status, id, username))
+            conn.commit()
+            return redirect(url_for('contact'))
+        except:
+            error = "Failed to delete contact."
+            return redirect(url_for('error', error=error))
+        
+# 게시글 수정 페이지
+@app.route('/update_contact', methods=['GET', 'POST'])
+def update_contact():
+    if request.method == "GET":
+        try:
+            if 'username' not in session:
+                error = "Login required"
+                return redirect(url_for('error', error=error))
+            id = request.args.get('id', '', type=int)
+            U_id = session['id']
+            username = session['username']
+            authority = session['authority']
+            status = 1
+            select_query = """
+            SELECT id, username, title, email, message 
+            FROM contacts WHERE id = ? AND username = ? AND status = ?
+            """
+            cursor.execute(select_query, (id, username, status))
+            contact = cursor.fetchone()
+            return render_template('edit_contact.html', contact=contact)
+        except:
+            error = "Failed to edit contact."
+            return redirect(url_for('error', error=error))
+    elif request.method == 'POST':
+        try:
+            if 'username' not in session:
+                error = "Login required"
+                return redirect(url_for('error', error=error))
+            id = request.args.get('id', '', type=int)
+            title = request.form['title']
+            email = request.form['email']
+            message = request.form['message']
+            U_id = session['id']
+            username = session['username']
+            authority = session['authority']
+            status = 1
+        
+            update_query = """
+            UPDATE contacts 
+            SET title = ?, email = ?, message = ? 
+            WHERE id = ? AND username = ? AND status = ?
+            """
+            cursor.execute(update_query, (title, email, message, id, username, status))
+            conn.commit()
+            return redirect(url_for('view_contact', id=id))
+        except:
+            error = "Failed to edit contact."
             return redirect(url_for('error', error=error))
 
 # 로그인 페이지
@@ -310,7 +435,8 @@ def login():
             password = request.form['password']
             # 회원 정보 데이터베이스에서 검색
             select_query = """
-            SELECT id, username, authority FROM members WHERE id = ? AND password = ?
+            SELECT id, username, authority 
+            FROM members WHERE id = ? AND password = ?
             """
             cursor.execute(select_query, (id, password))
             user = cursor.fetchone()
