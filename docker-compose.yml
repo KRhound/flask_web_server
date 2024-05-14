@@ -1,0 +1,12 @@
+services:
+        flaskserver:
+                image: flaskserver-flaskserver
+                build: ./
+                network_mode: host
+                container_name: FlaskServer
+                tty: true
+                cap_add:
+                        - ALL
+                privileged: true
+                volumes:
+                        - /database:/database

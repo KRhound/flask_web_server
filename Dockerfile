@@ -1,7 +1,25 @@
-FROM ubuntu/apache2:latest
+FROM ubuntu:18.04
 
-COPY ./sources/index.html /var/www/html
-COPY ./sources/flag.txt /var/www/html
-COPY ./sources/js.js /var/www/html
-COPY ./sources/README.txt /var/www/html
-COPY ./sources/style.css /var/www/html
+RUN apt-get update
+
+RUN apt-get install -y python3.7
+RUN apt-get install -y python3-pip
+RUN useradd -m -s /bin/bash FlaskServer
+
+
+COPY WHS /WHS
+
+RUN chown -R FlaskServer:root WHS
+
+WORKDIR /WHS/
+
+RUN chmod 644 ./database/web.db
+# EXPOSE 7000
+RUN pip3 install Flask
+RUN pip3 install flask_mail
+
+WORKDIR /WHS/source
+
+USER FlaskServer
+
+CMD ["python3", "app.py"]

@@ -1,3 +1,4 @@
+# encoding=utf8
 from flask import Flask, render_template, request, redirect, session, url_for, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
@@ -15,10 +16,12 @@ app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
 # 세션 타입 설정
 app.config['SESSION_TYPE'] = 'filesystem'
 # 파일 타입 설정
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'hwp'}
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'hwp'}
 # 프로젝트 루트 경로 설정
 PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
+print(PROJECT_ROOT)
 UPLOAD_FOLDER = os.path.join(PROJECT_ROOT, 'uploads')
+print(UPLOAD_FOLDER)
 # 파일 업로드 경로 설정
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -36,8 +39,8 @@ app.config.update(
     MAIL_PORT=587,
     MAIL_USE_TLS=True,
     MAIL_USE_SSL=False,
-    MAIL_USERNAME='jihoon3990@gmail.com',
-    MAIL_PASSWORD='glbtuhkyfdakgmke',
+    MAIL_USERNAME='your_gmail@gmail.com',
+    MAIL_PASSWORD='app_key',
 )
 
 
@@ -54,24 +57,23 @@ def password_sha_512_hash(data):
 def send_confirmation_email(email, token):
     try:
         mail = Mail(app)
-        msg = Message('[KRhound] 이메일 인증 번호', sender='jihoon3990@gmail.com', recipients=[email])
+        msg = Message('[KRhound] 이메일 인증 번호', sender='your_gmail@gmail.com', recipients=[email])
         msg.body = '안녕하세요. KRhound 입니다.\n인증 번호를 입력하여 이메일 인증을 완료해 주세요.\n인증 번호 : /nhttp://127.0.0.1:5000/confirm/{}'.format(str(token))
         mail.send(msg)
         return True
-    except Exception as e:
-        return e
+    except:
+        return False
 
 def create_directory_if_not_exists(directory_path):
     # 디렉토리가 존재하지 않으면 생성
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
-        print(f"디렉토리 생성: {directory_path}")
+        print(f"Create succesfully : {directory_path}")
     else:
-        print(f"디렉토리 이미 존재함: {directory_path}")
+        print(f"Directory exists : {directory_path}")
 
-conn = sqlite3.connect('web.db', check_same_thread=False)
+conn = sqlite3.connect('../database/web.db', check_same_thread=False)
 cursor = conn.cursor()
-
 # -------------------------------------------------------------
 
 # 메인 페이지
@@ -108,7 +110,7 @@ def board():
         cursor.execute(select_query, (status, ))
         posts = cursor.fetchall()
         return render_template('board.html', posts=posts)
-    except sqlite3.InternalError:
+    except:
         msg = "Bulletin board loading failure."
         return redirect(url_for('error', error=error))
 
@@ -138,7 +140,7 @@ def view_post():
             cursor.execute(select_query, (id, status))
             comments = cursor.fetchall()
             return render_template('view_post.html', post=post, comments=comments)
-        except sqlite3.IntegrityError:
+        except:
             error = "Unusual approach."
             return redirect(url_for('error', error=error))
     
@@ -187,7 +189,9 @@ def update_post():
                 file.seek(0)  # 파일을 다시 읽을 수 있도록 커서 위치를 처음으로 이동시킴
                 real_filename = file.filename
                 hash_filename = filename_sha_512_hash(file.filename)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], hash_filename))
+                file_path = app.config['UPLOAD_FOLDER']+'/'+str(id)+'/'
+                create_directory_if_not_exists(file_path)
+                file.save(os.path.join(file_path, hash_filename))
             else:
                 real_filename = None
                 hash_filename = None
@@ -263,9 +267,9 @@ def create_post():
             
              # 파일 업로드 처리
             if file and allowed_file(file.filename):
-                # 파일 크기 제한 설정 (최대 1MB)
+                # 파일 크기 제한 설정 (최대 100MB)
                 if len(file.read()) > 1024*1024*100:
-                    msg = "파일 크기가 너무 큽니다. 최대 1MB까지 업로드 가능합니다."
+                    msg = "파일 크기가 너무 큽니다. 최대 100MB까지 업로드 가능합니다."
                     return render_template('create_post.html', msg=msg)
                 file.seek(0)  # 파일을 다시 읽을 수 있도록 커서 위치를 처음으로 이동시킴
                 real_filename = file.filename
@@ -273,18 +277,22 @@ def create_post():
                 cursor.execute(insert_query, (U_id, username, title, content, real_filename, hash_filename, status))
                 conn.commit()
                 id = cursor.lastrowid
-                file_path = app.config['UPLOAD_FOLDER']+'/'+str(id)+'/'
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], str(id))
+                print(hash_filename)
                 create_directory_if_not_exists(file_path)
                 file.save(os.path.join(file_path, hash_filename))
+                return redirect(url_for('view_post', id=id))
+            elif file and allowed_file(file.filename) == False:
+                error = "Not allowed file exention."
+                return redirect(url_for('error', error=error))
             else:
                 real_filename = None
                 hash_filename = None
                 cursor.execute(insert_query, (U_id, username, title, content, real_filename, hash_filename, status))
                 conn.commit()
                 id = cursor.lastrowid
-                
-            return redirect(url_for('view_post', id=id))
-        except sqlite3.IntegrityError:
+                return redirect(url_for('view_post', id=id))
+        except Exception:
             error = "Creation failed."
             return redirect(url_for('error', error=error))
 
@@ -302,14 +310,24 @@ def create_comment():
             username = session['username']
             authority = session['authority']
             status = 1
-            insert_query = """
-            INSERT INTO comments (U_id, username, content, status, B_id) 
-            VALUES (?, ?, ?, ?, ?)
+            select_query = """
+            SELECT status 
+            FROM boards WHERE id = ?
             """
-            cursor.execute(insert_query, (U_id, username, content, status, id))
-            conn.commit()
-            return redirect(url_for('view_post', id=id))
-        except sqlite3.IntegrityError:
+            cursor.execute(select_query, (id, ))
+            board = cursor.fetchone()
+            if board[0] == 1:
+                insert_query = """
+                INSERT INTO comments (U_id, username, content, status, B_id) 
+                VALUES (?, ?, ?, ?, ?)
+                """
+                cursor.execute(insert_query, (U_id, username, content, status, id))
+                conn.commit()
+                return redirect(url_for('view_post', id=id))
+            elif board[0] == 0:
+                error = "Creation failed."
+                return redirect(url_for('error', error=error))
+        except Exception:
             error = "Creation failed."
             return redirect(url_for('error', error=error))
         
@@ -356,8 +374,6 @@ def download(id, filename):
         file = cursor.fetchone()
         real_filename = file[0]
         hash_filename = file[1]
-        print(real_filename)
-        print(hash_filename)
         # 파일 경로 설정
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], id, hash_filename)
         # 파일이 존재하는지 확인하고 다운로드
@@ -384,7 +400,7 @@ def contact():
         cursor.execute(select_query, (status, ))
         contacts = cursor.fetchall()
         return render_template('contact.html', contacts=contacts)
-    except sqlite3.InternalError:
+    except Exception:
         msg = "Bulletin board loading failure."
         return redirect(url_for('error', error=error))
     
@@ -420,7 +436,7 @@ def create_contact():
             else:
                 error = "No input."
                 return redirect(url_for('error', error=error))
-        except sqlite3.IntegrityError:
+        except Exception:
             error = "Creation failed."
             return redirect(url_for('error', error=error))
                 
@@ -452,7 +468,7 @@ def view_contact():
                 cursor.execute(select_query, (id, status))
                 contact = cursor.fetchone()
             return render_template('view_contact.html', contact=contact)
-        except sqlite3.IntegrityError:
+        except Exception:
             error = "Unusual approach."
             return redirect(url_for('error', error=error))
         
@@ -557,7 +573,7 @@ def login():
             else:
                 error = "Account mismatch."
                 return redirect(url_for('error', error=error))
-        except sqlite3.IntegrityError:
+        except Exception:
             error = "Login failed."
             return redirect(url_for('error', error=error))
 
@@ -576,7 +592,7 @@ def register():
             gender = request.form['gender']
             phone = request.form['phone']
             email = request.form['email']
-            authority = 1
+            authority = 0
             status = 1
 
             if(password == confirmPassword):
@@ -592,7 +608,7 @@ def register():
             else:
                 msg = "비밀번호 불일치"
                 return render_template('/register.html', msg=msg)
-        except sqlite3.IntegrityError:
+        except Exception:
             msg = "이미 존재하는 회원 정보입니다."
             return render_template('/register.html', msg=msg)
         
@@ -636,32 +652,38 @@ def send_email(id):
             else:
                 error = "Failed to send authentication email."
                 return redirect(url_for('error', error=error))
-        except Exception as e:
+        except Exception:
             error = "Failed to send authentication email."
             return redirect(url_for('error', error=error))
 
-@app.route('/verify_email/<msg>', methods=['GET', 'POST'])
+@app.route('/verify_email/<msg>', methods=['GET'])
 def verify_email(msg):
     return render_template('verify_email.html', verify_msg=msg)
 
 
-@app.route('/confirm/<token>', methods=['GET', 'POST'])
+@app.route('/confirm/<token>', methods=['GET'])
 def confirm_email(token):
-    select_query = """
-    SELECT id, username, email, authority
-    FROM members WHERE token = ?
-    """
-    cursor.execute(select_query, (id, ))
-    user = cursor.fetchone()
-    update_query = """
-    UPDATE member
-    SET authority = 1
-    WHERE id = ? AND username = ? AND email = ? and authority = ? andstatus = 1
-    """
-    cursor.execute(update_query, (user[0], user[1], user[2]))
-    conn.commit()
-    msg = "Authentication successful."
-    return redirect(url_for('verify_email', verify_msg=msg))
+    try:
+        authority = 1
+        select_query = """
+        SELECT U_id, username, email
+        FROM verify WHERE token = ?
+        """
+        cursor.execute(select_query, (token, ))
+        user = cursor.fetchone()
+        print(user)
+        update_query = """
+        UPDATE members 
+        SET authority = 1
+        WHERE id = ? AND username = ? AND email = ?
+        """
+        cursor.execute(update_query, (user[0], user[1], user[2]))
+        conn.commit()
+        msg = "Authentication successful."
+        return redirect(url_for('verify_email', msg=msg))
+    except:
+        error = "Authentication failed."
+        return redirect(url_for('error', error=error))
 
 # -------------------------------------------------------------
 

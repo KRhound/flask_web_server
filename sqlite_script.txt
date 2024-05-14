@@ -1,0 +1,103 @@
+DROP TABLE IF EXISTS like;
+DROP TABLE IF EXISTS view;
+DROP TABLE IF EXISTS comments;
+DROP TABLE IF EXISTS boards;
+DROP TABLE IF EXISTS contacts;
+DROP TABLE IF EXISTS verify;
+DROP TABLE IF EXISTS members;
+PRAGMA foreign_keys = ON;
+PRAGMA encoding='UTF-8';
+
+CREATE TABLE IF NOT EXISTS members (
+    id VARCHAR(20) PRIMARY KEY,
+    fullname VARCHAR(30) NOT NULL,
+    username VARCHAR(20) NOT NULL UNIQUE,
+    email VARCHAR(64) NOT NULL UNIQUE,
+    password VARCHAR(512) NOT NULL,
+    phone VARCHAR(13) NOT NULL UNIQUE,
+    gender VARCHAR(6) NOT NULL,
+    authority INTEGER NOT NULL,
+    status INTEGER NOT NULL,
+    modification_date DATE NOT NULL DEFAULT (datetime('now', 'localtime')),
+    registration_date DATE NOT NULL DEFAULT (datetime('now', 'localtime'))
+);
+
+-- board = 1
+CREATE TABLE IF NOT EXISTS boards (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    U_id VARCHAR(20) NOT NULL,
+    username VARCHAR(20) NOT NULL,
+    title VARCHAR(100) NOT NULL,
+    content TEXT NOT NULL,
+    real_filename VARCHAR(128),
+    hash_filename VARCHAR(128),
+    status INTEGER NOT NULL,
+    modification_date DATE NOT NULL DEFAULT (datetime('now', 'localtime')),
+    registration_date DATE NOT NULL DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY(username) REFERENCES members(username),
+    FOREIGN KEY(U_id) REFERENCES members(id)
+);
+
+CREATE TABLE IF NOT EXISTS comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    U_id VARCHAR(20) NOT NULL,
+    username VARCHAR(20) NOT NULL,
+    content TEXT NOT NULL,
+    status INTEGER NOT NULL,
+    B_id INTEGER NOT NULL,
+    modification_date DATE NOT NULL DEFAULT (datetime('now', 'localtime')),
+    registration_date DATE NOT NULL DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY(B_id) REFERENCES boards(id),
+    FOREIGN KEY(U_id) REFERENCES members(id),
+    FOREIGN KEY(username) REFERENCES members(username)
+);
+
+CREATE TABLE IF NOT EXISTS like (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    U_id VARCHAR(20) NOT NULL,
+    username VARCHAR(20) NOT NULL,
+    B_id INTEGER NOT NULL,
+    status INTEGER NOT NULL,
+    modification_date DATE NOT NULL DEFAULT (datetime('now', 'localtime')),
+    registration_date DATE NOT NULL DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY(B_id) REFERENCES boards(id),
+    FOREIGN KEY(U_id) REFERENCES members(id),
+    FOREIGN KEY(username) REFERENCES members(username)
+);
+
+CREATE TABLE IF NOT EXISTS view (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    U_id VARCHAR(20) NOT NULL,
+    username VARCHAR(20) NOT NULL,
+    B_id INTEGER NOT NULL,
+    date DATE NOT NULL DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY(B_id) REFERENCES boards(id),
+    FOREIGN KEY(U_id) REFERENCES members(id),
+    FOREIGN KEY(username) REFERENCES members(username)
+);
+
+CREATE TABLE IF NOT EXISTS contacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    U_id VARCHAR(20) NOT NULL,
+    username VARCHAR(20) NOT NULL,
+    title VARCHAR(100) NOT NULL,
+    email VARCHAR(64) NOT NULL,
+    message TEXT NOT NULL,
+    status INTEGER NOT NULL,
+    response_date DATE,
+    registration_date DATE NOT NULL DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY(U_id) REFERENCES members(id),
+    FOREIGN KEY(username) REFERENCES members(username)
+);
+
+CREATE TABLE IF NOT EXISTS verify (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    U_id VARCHAR(20) NOT NULL,
+    username VARCHAR(20) NOT NULL,
+    email VARCHAR(64) NOT NULL,
+    token VARCHAR(512) NOT NULL,
+    registration_date DATE NOT NULL DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY (U_id) REFERENCES members(id),
+    FOREIGN KEY (username) REFERENCES members(username),
+    FOREIGN KEY (email) REFERENCES members(email)
+);
