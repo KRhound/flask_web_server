@@ -224,14 +224,15 @@ def delete_post():
             if 'username' not in session:
                 error = "Login required."
                 return redirect(url_for('error', error=error))
+            username = session['username']
             id = request.args.get('id', '', type=int)
             status = 0
             update_query = """
             UPDATE boards 
             SET status = ? 
-            WHERE id = ?
+            WHERE id = ? and username = ?
             """
-            cursor.execute(update_query, (status, id))
+            cursor.execute(update_query, (status, id, username))
             conn.commit()
             return redirect(url_for('board'))
         except:
@@ -392,6 +393,9 @@ def download(id, filename):
 @app.route('/contact', methods=['GET'])
 def contact():
     try:
+        if 'username' not in session:
+            error = "Login required."
+            return redirect(url_for('error', error=error))
         status = 1
         select_query = """
         SELECT id, username, title, email, response_date, registration_date 
