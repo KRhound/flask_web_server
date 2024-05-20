@@ -3,6 +3,9 @@
 {% block title %}Login{% endblock %}
 
 {% block content %}
+{% if msg %}
+<script>alert("{{msg}}")</script>
+{% endif %}
 <div class="container">
   <h2 class="mt-5 mb-3">Login</h2>
   <form action="/login" method="POST">

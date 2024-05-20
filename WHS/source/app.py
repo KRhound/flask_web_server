@@ -567,17 +567,34 @@ def login():
             """
             cursor.execute(select_query, (id, password))
             user = cursor.fetchone()
-            if user[2] == 0:
-                return redirect(url_for('send_email', id=user[0]))
+            select_query = """
+            SELECT COUNT(*) 
+            FROM login_logs WHERE id = ? AND date > DATETIME('now', '-30 minute')
+            """
+            cursor.execute(select_query, (id,))
+            login_logs_count = cursor.fetchone()
+            if login_logs_count[0] >= 5:
+                msg = "Login Failed."
+                return render_template('login.html', msg=msg)
+            if user is None:
+                insert_query = """
+                INSERT INTO login_logs (U_id) 
+                VALUES (?)
+                """
+                cursor.execute(insert_query, (id,))
+                conn.commit()
+                msg = "Try 30 minute later."
+                return render_template('login.html', msg=msg)
             elif user:
+                if user[2] == 0:
+                    return redirect(url_for('send_email', id=user[0]))
                 # 세션에 사용자 정보 저장
                 session['id'] = user[0]
                 session['username'] = user[1]
                 session['authority'] = user[2]
                 return redirect(url_for('profile'))
-            else:
-                error = "Account mismatch."
-                return redirect(url_for('error', error=error))
+            error = "Account mismatch."
+            return redirect(url_for('error', error=error))
         except Exception:
             error = "Login failed."
             return redirect(url_for('error', error=error))

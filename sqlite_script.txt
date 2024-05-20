@@ -4,6 +4,7 @@ DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS boards;
 DROP TABLE IF EXISTS contacts;
 DROP TABLE IF EXISTS verify;
+DROP TABLE IF EXISTS login_logs;
 DROP TABLE IF EXISTS members;
 PRAGMA foreign_keys = ON;
 PRAGMA encoding='UTF-8';
@@ -100,4 +101,11 @@ CREATE TABLE IF NOT EXISTS verify (
     FOREIGN KEY (U_id) REFERENCES members(id),
     FOREIGN KEY (username) REFERENCES members(username),
     FOREIGN KEY (email) REFERENCES members(email)
+);
+
+CREATE TABLE IF NOT EXISTS login_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    U_id VARCHAR(20) NOT NULL,
+    date DATE NOT NULL DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY (U_id) REFERENCES members(id)
 );
