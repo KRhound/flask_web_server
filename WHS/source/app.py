@@ -39,8 +39,8 @@ app.config.update(
     MAIL_PORT=587,
     MAIL_USE_TLS=True,
     MAIL_USE_SSL=False,
-    MAIL_USERNAME='your_gmail@gmail.com',
-    MAIL_PASSWORD='app_key',
+    MAIL_USERNAME='your_email@gmail.com',
+    MAIL_PASSWORD='your_app_key',
 )
 
 
@@ -57,7 +57,7 @@ def password_sha_512_hash(data):
 def send_confirmation_email(email, token):
     try:
         mail = Mail(app)
-        msg = Message('[KRhound] 이메일 인증 번호', sender='your_gmail@gmail.com', recipients=[email])
+        msg = Message('[KRhound] 이메일 인증 번호', sender='your_email@gmail.com', recipients=[email])
         msg.body = '안녕하세요. KRhound 입니다.\n인증 번호를 입력하여 이메일 인증을 완료해 주세요.\n인증 번호 : /nhttp://127.0.0.1:5000/confirm/{}'.format(str(token))
         mail.send(msg)
         return True
@@ -230,7 +230,7 @@ def delete_post():
             update_query = """
             UPDATE boards 
             SET status = ? 
-            WHERE id = ? and username = ?
+            WHERE id = ? and username = ? and status = 1
             """
             cursor.execute(update_query, (status, id, username))
             conn.commit()
@@ -559,6 +559,7 @@ def login():
         try:
             id = request.form['id']
             password = request.form['password']
+            password = password_sha_512_hash(password)
             # 회원 정보 데이터베이스에서 검색
             select_query = """
             SELECT id, username, authority 
@@ -598,9 +599,9 @@ def register():
             email = request.form['email']
             authority = 0
             status = 1
-
             if(password == confirmPassword):
                 # 회원 정보 데이터베이스에 삽입
+                password = password_sha_512_hash(password)
                 insert_query = """
                 INSERT INTO members (fullname, username, id, password, gender, phone, email, authority, status) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -697,4 +698,4 @@ def admin():
     return render_template('krhound.html')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=5000, debug=True)
